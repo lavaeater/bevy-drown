@@ -1,6 +1,4 @@
 use bevy::prelude::*;
-use bevy::prelude::CoreSet::Update;
-use bevy::prelude::StartupSet::Startup;
 
 fn main() {
     App::new()
@@ -10,8 +8,8 @@ fn main() {
             // by linear filtering.
             ImagePlugin::default_nearest(),
         ))
-        .add_systems(Startup)
-        .add_systems(Update, sprite_movement)
+        .add_startup_system(setup)
+        .add_system(sprite_movement)
         .run();
 }
 
