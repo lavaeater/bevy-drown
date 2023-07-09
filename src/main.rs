@@ -8,12 +8,22 @@ fn main() {
             // by linear filtering.
             ImagePlugin::default_nearest(),
         ))
-        .add_system(hello_world)
+        .add_startup_system(setup)
+        .add_system(print_names)
         .run();
 }
 
-pub fn hello_world() {
-    println!("Hello World!")
+pub fn print_names(person_query: Query<&Person>) {
+    for person in person_query.iter() {
+        println!("Name: {}", person.name);
+    }
+}
+
+pub fn setup(mut commands: Commands) {
+    commands
+        .spawn(Person {
+            name: "Elaina Proctor".to_string()
+        });
 }
 
 #[derive(Component)]
