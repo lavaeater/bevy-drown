@@ -8,8 +8,8 @@ fn main() {
             // by linear filtering.
             ImagePlugin::default_nearest(),
         ))
-        .add_systems(Startup,setup)
-        .add_systems(Update,print_names)
+        .add_systems(Startup, setup)
+        .add_systems(Update, print_names)
         .run();
 }
 
@@ -29,4 +29,16 @@ pub fn setup(mut commands: Commands) {
 #[derive(Component)]
 pub struct Person {
     pub name: String 
+}
+
+#[derive(Component)]
+pub struct Employed {
+    pub job: Job
+}
+
+#[derive(Debug)]
+pub enum Job {
+    Doctor,
+    FireFighter,
+    PenisJouster
 }
