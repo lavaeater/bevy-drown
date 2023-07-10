@@ -8,8 +8,8 @@ fn main() {
             // by linear filtering.
             ImagePlugin::default_nearest(),
         ))
-        .add_startup_system(setup)
-        .add_system(print_names)
+        .add_systems(Startup,setup)
+        .add_systems(Update,print_names)
         .run();
 }
 
