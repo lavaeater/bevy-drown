@@ -10,9 +10,9 @@ fn main() {
         )
         .add_plugins(
             PhysicsPlugins::default()
-                .build()
         )
         .add_systems(Startup, spawn_camera)
+        .add_systems(Startup,  spawn_world)
         .add_systems(Startup, spawn_player)
         .run();
 }
@@ -21,6 +21,17 @@ fn main() {
 #[derive(Component)]
 pub struct Player {}
 
+pub fn spawn_world(
+    mut commands: Commands,
+) {
+    commands.spawn(
+        (
+            RigidBody::Static,
+            Collider::cuboid(10.0, 1.0)
+            )
+    );
+}
+
 pub fn spawn_player(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -28,11 +39,13 @@ pub fn spawn_player(
     commands.spawn(
         (
             SpriteBundle {
-                transform: Transform::from_xyz(0.0, 0.0, 0.0),
+                transform: Transform::from_xyz(0.0, 10.0, 0.0),
                 texture: asset_server.load("sprites/head.png"),
                 ..default()
             },
             Player {},
+            RigidBody::Dynamic,
+            Collider::ball(0.35)
         )
     );
 }
