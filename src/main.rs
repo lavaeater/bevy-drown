@@ -57,18 +57,16 @@ pub fn spawn_player(
 }
 
 pub fn spawn_camera(mut commands: Commands) {
-    let proj: OrthographicProjection = OrthographicProjection {
-        scale: 1.0,
-        near: 0.0,
-        far: 100.0,
-        viewport_origin: Vec2::new(0.5, 0.5),
-        scaling_mode: ScalingMode::WindowSize(PIXELS_PER_METER),
-        area: Rect::new(-1.0, -1.0, 1.0, 1.0),
-    };
-
     commands.spawn(Camera2dBundle {
         transform: Transform::from_xyz(0.0, 0.0, 1.0),
-        projection: proj,
+        projection: OrthographicProjection {
+            scale: 1.0,
+            near: 0.0,
+            far: 100.0,
+            viewport_origin: Vec2::new(0.5, 0.5),
+            scaling_mode: ScalingMode::WindowSize(PIXELS_PER_METER),
+            area: Rect::new(-1.0, -1.0, 1.0, 1.0),
+        },
         ..default()
     });
 }
