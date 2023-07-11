@@ -24,15 +24,15 @@ fn main() {
 
 fn setup_physics(mut commands: Commands) {
     commands
-        .spawn(Collider::cuboid(500.0, 50.0))
-        .insert(TransformBundle::from(Transform::from_xyz(0.0, -100.0, 0.0)));
+        .spawn(Collider::cuboid(10.0, 1.0))
+        .insert(TransformBundle::from(Transform::from_xyz(0.0, 0.0, 0.0)));
 
     /* Create the bouncing ball. */
     commands
         .spawn(RigidBody::Dynamic)
-        .insert(Collider::ball(50.0))
+        .insert(Collider::ball(HEAD_SIZE * METERS_PER_PIXEL))
         .insert(Restitution::coefficient(0.95))
-        .insert(TransformBundle::from(Transform::from_xyz(0.0, 400.0, 0.0)));
+        .insert(TransformBundle::from(Transform::from_xyz(0.0, 10.0, 0.0)));
 }
 
 #[derive(Component)]
