@@ -51,7 +51,7 @@ pub fn spawn_player(
             },
             Player {},
             RigidBody::Dynamic,
-            Collider::ball(HEAD_SIZE * METERS_PER_PIXEL)
+            Collider::ball(HEAD_SIZE * METERS_PER_PIXEL / 2.0)
         )
     );
 }
