@@ -47,6 +47,7 @@ pub fn spawn_world(
     };
     commands.spawn(
         (
+            CameraFollow {},
             RigidBody::Static,
             Collider::cuboid(10.0, 1.0),
             Position::from(Vec2 { x: 0.0, y: -5.0 }),
@@ -67,7 +68,6 @@ pub fn spawn_player(
 ) {
     commands.spawn(
         (
-            CameraFollow {},
             SpriteBundle {
                 transform: Transform::from_xyz(0.0, 10.0, 0.0).with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, METERS_PER_PIXEL)),
                 texture: asset_server.load("sprites/head.png"),
@@ -99,15 +99,30 @@ pub fn spawn_camera(mut commands: Commands) {
     );
 }
 
-pub fn camera_follow(to_follow: Query<&Transform, (With<CameraFollow>, Without<GameCam>)>,
+pub fn camera_follow(to_follow: Query<&Position, (With<CameraFollow>, Without<GameCam>)>,
                      mut camera: Query<&mut Transform, (With<GameCam>, Without<CameraFollow>)>
 ) {
-    let Ok(player_transform) = to_follow.get_single() else {return};
+    let Ok(player_position) = to_follow.get_single() else {return};
     let Ok(mut camera_transform) = camera.get_single_mut() else { return };
 
-    let delta = player_transform.translation - camera_transform.translation;
-    if delta != Vec3::ZERO {
-        camera_transform.translation += delta;
+    // camera_transform.translation += Vec3 {x:0.1, y: 0.0, z: 0.0}
+    //
+    // camera_transform.translation = player_transform.translation;
+    //
+    // let viewport = &cam.viewport;
+    //
+    // match viewport {
+    //     // The division was valid
+    //     Some(vp) => vp.physical_position,
+    //     // The division was invalid
+    //     None    => println!("Cannot divide by 0"),
+    // }
+
+    let delta_x = player_position.x - camera_transform.translation.x;
+    let delta_y =  player_position.y - camera_transform.translation.y;
+    if delta_x != 0.0 || delta_y != 0.0  {
+        camera_transform.translation.x += delta_x;
+        camera_transform.translation.y += delta_y;
     }
 
 }
