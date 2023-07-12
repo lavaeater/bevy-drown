@@ -40,23 +40,55 @@ pub struct GameCam {}
 pub fn spawn_world(
     mut commands: Commands,
 ) {
+    /*
+    We need four bodies
+    They can be built from two different shapes
+     */
     //Add a stupid shape for now?
-    let shape = shapes::Rectangle {
-        extents: Vec2::new(10.0, 1.0),
+    let long_shape = shapes::Rectangle {
+        extents: Vec2::new(10.0, 0.1),
         origin: shapes::RectangleOrigin::Center,
     };
+
+    let short_shape = shapes::Rectangle {
+        extents: Vec2::new(0.1, 2.2),
+        origin: shapes::RectangleOrigin::Center,
+    };
+
+
+
+
     commands.spawn(
         (
             RigidBody::Static,
-            Collider::cuboid(10.0, 1.0),
-            Position::from(Vec2 { x: 0.0, y: -5.0 }),
+            Collider::cuboid(10.0, 0.1),
+            Position::from(Vec2 { x: 0.0, y: 0.0 }),
             Rotation::from_degrees(45.0),
             ShapeBundle {
-                path: GeometryBuilder::build_as(&shape),
+                path: GeometryBuilder::build_as(&long_shape),
                 ..default()
             },
             Fill::color(Color::CYAN),
-            Stroke::new(Color::BLACK, 0.1),
+            Stroke::new(Color::BLACK, 0.01),
+        )
+    );
+
+    let rot = Vec2::from_angle(45.0);
+
+    let pos = rot.rotate(Vec2 { x: 5.0, y: 0.0 });// - rot.rotate(Vec2 { x: 5.0, y: 1.0 });
+
+    commands.spawn(
+        (
+            RigidBody::Static,
+            Collider::cuboid(0.1, 2.2),
+            Position::from(pos),
+            Rotation::from_degrees(45.0),
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&short_shape),
+                ..default()
+            },
+            Fill::color(Color::CYAN),
+            Stroke::new(Color::BLACK, 0.01),
         )
     );
 }
