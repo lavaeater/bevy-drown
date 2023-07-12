@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
 use bevy_xpbd_2d::prelude::*;
+use bevy_prototype_lyon::prelude::*;
 
 const PIXELS_PER_METER: f32 = 32.0;
 const METERS_PER_PIXEL: f32 = 1.0 / PIXELS_PER_METER;
@@ -9,6 +10,7 @@ const HEAD_SIZE: f32 = 8.0;
 
 fn main() {
     App::new()
+        .insert_resource(Msaa::Sample4)
         .add_plugins(
             DefaultPlugins.set(
                 ImagePlugin::default_nearest(),
@@ -17,6 +19,7 @@ fn main() {
         .add_plugins(
             PhysicsPlugins::default()
         )
+        .add_plugins(ShapePlugin)
         .add_systems(Startup, spawn_camera)
         .add_systems(Startup, spawn_world)
         .add_systems(Startup, spawn_player)
@@ -33,12 +36,23 @@ pub struct CameraFollow {}
 pub fn spawn_world(
     mut commands: Commands,
 ) {
+    //Add a stupid shape for now?
+    let shape = shapes::Rectangle {
+        extents: Vec2::new(10.0, 1.0),
+        origin: shapes::RectangleOrigin::Center,
+    };
     commands.spawn(
         (
             RigidBody::Static,
             Collider::cuboid(10.0, 1.0),
             Position::from(Vec2 { x: 0.0, y: -5.0 }),
             Rotation::from_degrees(45.0),
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shape),
+                ..default()
+            },
+            Fill::color(Color::CYAN),
+            Stroke::new(Color::BLACK, 0.1),
         )
     );
 }
