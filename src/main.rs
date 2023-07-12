@@ -47,7 +47,6 @@ pub fn spawn_world(
     };
     commands.spawn(
         (
-            CameraFollow {},
             RigidBody::Static,
             Collider::cuboid(10.0, 1.0),
             Position::from(Vec2 { x: 0.0, y: -5.0 }),
@@ -68,6 +67,7 @@ pub fn spawn_player(
 ) {
     commands.spawn(
         (
+            CameraFollow {},
             SpriteBundle {
                 transform: Transform::from_xyz(0.0, 10.0, 0.0).with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, METERS_PER_PIXEL)),
                 texture: asset_server.load("sprites/head.png"),
@@ -99,16 +99,13 @@ pub fn spawn_camera(mut commands: Commands) {
     );
 }
 
-pub fn camera_follow(to_follow: Query<&GlobalTransform, (With<CameraFollow>, Without<GameCam>)>,
-                     mut camera: Query<(&GlobalTransform, &mut Transform), (With<GameCam>, Without<CameraFollow>)>
+pub fn camera_follow(to_follow: Query<&Transform, (With<CameraFollow>, Without<GameCam>)>,
+                     mut camera: Query<&mut Transform, (With<GameCam>, Without<CameraFollow>)>,
 ) {
-    let Ok(player_position) = to_follow.get_single() else { return };
-    let Ok((cam_global, mut camera_transform)) = camera.get_single_mut() else { return };
+    let Ok(player_position) = to_follow.get_single() else { return; };
+    let Ok(mut camera_transform) = camera.get_single_mut() else { return; };
+    let target = Vec3 { x: player_position.translation.x, y: player_position.translation.y, z: camera_transform.translation.z };
 
-    let delta = player_position.translation() - cam_global.translation();
 
-    if delta != Vec3::ZERO {
-        camera_transform.translation += Vec3 { x: delta.x, y: delta.y, z: 0.0 };
-    }
-
+    camera_transform.translation = camera_transform.translation.lerp(target, 0.1);
 }
