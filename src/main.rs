@@ -23,6 +23,7 @@ fn main() {
         .add_systems(Startup, spawn_camera)
         .add_systems(Startup, spawn_world)
         .add_systems(Startup, spawn_player)
+        .add_systems(Update, camera_follow)
         .run();
 }
 
@@ -32,6 +33,9 @@ pub struct Player {}
 
 #[derive(Component)]
 pub struct CameraFollow {}
+
+#[derive(Component)]
+pub struct GameCam {}
 
 pub fn spawn_world(
     mut commands: Commands,
@@ -63,6 +67,7 @@ pub fn spawn_player(
 ) {
     commands.spawn(
         (
+            CameraFollow {},
             SpriteBundle {
                 transform: Transform::from_xyz(0.0, 10.0, 0.0).with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, METERS_PER_PIXEL)),
                 texture: asset_server.load("sprites/head.png"),
@@ -76,16 +81,33 @@ pub fn spawn_player(
 }
 
 pub fn spawn_camera(mut commands: Commands) {
-    commands.spawn(Camera2dBundle {
-        transform: Transform::from_xyz(0.0, 0.0, 1.0),
-        projection: OrthographicProjection {
-            scale: METERS_PER_PIXEL *20.0,
-            near: 0.0,
-            far: 1000.0,
-            viewport_origin: Vec2::new(0.5, 0.5),
-            scaling_mode: ScalingMode::WindowSize(PIXELS_PER_METER),
-            area: Rect::new(-1.0, -1.0, 1.0, 1.0),
+    commands.spawn((
+        Camera2dBundle {
+            transform: Transform::from_xyz(0.0, 0.0, 1.0),
+            projection: OrthographicProjection {
+                scale: METERS_PER_PIXEL * 20.0,
+                near: 0.0,
+                far: 1000.0,
+                viewport_origin: Vec2::new(0.5, 0.5),
+                scaling_mode: ScalingMode::WindowSize(PIXELS_PER_METER),
+                area: Rect::new(-1.0, -1.0, 1.0, 1.0),
+            },
+            ..default()
         },
-        ..default()
-    });
+        GameCam {},
+    )
+    );
+}
+
+pub fn camera_follow(to_follow: Query<&Transform, (With<CameraFollow>, Without<GameCam>)>,
+                     mut camera: Query<&mut Transform, (With<GameCam>, Without<CameraFollow>)>
+) {
+    let Ok(player_transform) = to_follow.get_single() else {return};
+    let Ok(mut camera_transform) = camera.get_single_mut() else { return };
+
+    let delta = player_transform.translation - camera_transform.translation;
+    if delta != Vec3::ZERO {
+        camera_transform.translation += delta;
+    }
+
 }
