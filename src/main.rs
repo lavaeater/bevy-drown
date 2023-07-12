@@ -18,7 +18,7 @@ fn main() {
             PhysicsPlugins::default()
         )
         .add_systems(Startup, spawn_camera)
-        .add_systems(Startup,  spawn_world)
+        .add_systems(Startup, spawn_world)
         .add_systems(Startup, spawn_player)
         .run();
 }
@@ -27,14 +27,19 @@ fn main() {
 #[derive(Component)]
 pub struct Player {}
 
+#[derive(Component)]
+pub struct CameraFollow {}
+
 pub fn spawn_world(
     mut commands: Commands,
 ) {
     commands.spawn(
         (
             RigidBody::Static,
-            Collider::cuboid(10.0, 1.0)
-            )
+            Collider::cuboid(10.0, 1.0),
+            Position::from(Vec2 { x: 0.0, y: -5.0 }),
+            Rotation::from_degrees(45.0),
+        )
     );
 }
 
@@ -45,7 +50,7 @@ pub fn spawn_player(
     commands.spawn(
         (
             SpriteBundle {
-                transform: Transform::from_xyz(0.0, 10.0, 0.0).with_scale(Vec3::new(METERS_PER_PIXEL,METERS_PER_PIXEL,METERS_PER_PIXEL)),
+                transform: Transform::from_xyz(0.0, 10.0, 0.0).with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, METERS_PER_PIXEL)),
                 texture: asset_server.load("sprites/head.png"),
                 ..default()
             },
@@ -60,9 +65,9 @@ pub fn spawn_camera(mut commands: Commands) {
     commands.spawn(Camera2dBundle {
         transform: Transform::from_xyz(0.0, 0.0, 1.0),
         projection: OrthographicProjection {
-            scale: 1.0,
+            scale: METERS_PER_PIXEL *20.0,
             near: 0.0,
-            far: 100.0,
+            far: 1000.0,
             viewport_origin: Vec2::new(0.5, 0.5),
             scaling_mode: ScalingMode::WindowSize(PIXELS_PER_METER),
             area: Rect::new(-1.0, -1.0, 1.0, 1.0),
