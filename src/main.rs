@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
 use bevy_xpbd_2d::prelude::*;
 use bevy_prototype_lyon::prelude::*;
+use bevy_xpbd_2d::math::Vector;
 
 const PIXELS_PER_METER: f32 = 32.0;
 const METERS_PER_PIXEL: f32 = 1.0 / PIXELS_PER_METER;
@@ -56,35 +57,23 @@ pub fn spawn_world(
     };
 
 
+    let collider = Collider::compound(
+        vec![
+            (Vec2::new(0.0, 0.0), Rotation::from_degrees(0.0), Collider::cuboid(10.0, 0.1)),
+            (Vec2::new(5.0, 1.0), Rotation::from_degrees(0.0), Collider::cuboid(0.1, 2.0)),
+            (Vec2::new(-5.0, 1.0), Rotation::from_degrees(0.0), Collider::cuboid(0.1, 2.0)),
+            (Vec2::new(0.0, 2.0), Rotation::from_degrees(0.0), Collider::cuboid(10.10, 0.1)),
+        ]);
 
 
     commands.spawn(
         (
             RigidBody::Static,
-            Collider::cuboid(10.0, 0.1),
+            collider,
             Position::from(Vec2 { x: 0.0, y: 0.0 }),
             Rotation::from_degrees(45.0),
             ShapeBundle {
                 path: GeometryBuilder::build_as(&long_shape),
-                ..default()
-            },
-            Fill::color(Color::CYAN),
-            Stroke::new(Color::BLACK, 0.01),
-        )
-    );
-
-    let rot = Vec2::from_angle(45.0);
-
-    let pos = rot.rotate(Vec2 { x: 5.0, y: 0.0 });// - rot.rotate(Vec2 { x: 5.0, y: 1.0 });
-
-    commands.spawn(
-        (
-            RigidBody::Static,
-            Collider::cuboid(0.1, 2.2),
-            Position::from(pos),
-            Rotation::from_degrees(45.0),
-            ShapeBundle {
-                path: GeometryBuilder::build_as(&short_shape),
                 ..default()
             },
             Fill::color(Color::CYAN),
@@ -101,7 +90,7 @@ pub fn spawn_player(
         (
             CameraFollow {},
             SpriteBundle {
-                transform: Transform::from_xyz(0.0, 10.0, 0.0).with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, METERS_PER_PIXEL)),
+                transform: Transform::from_xyz(0.0, 2.0, 0.0).with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, METERS_PER_PIXEL)),
                 texture: asset_server.load("sprites/head.png"),
                 ..default()
             },
@@ -141,3 +130,14 @@ pub fn camera_follow(to_follow: Query<&Transform, (With<CameraFollow>, Without<G
 
     camera_transform.translation = camera_transform.translation.lerp(target, 0.1);
 }
+
+// fn debug_render_aabbs(colliders: Query<&Collider>, mut gizmos: Gizmos) {
+//     // for collider in colliders.iter() {
+//     //
+//     //     gizmos.cuboid(
+//     //         Transform::from_scale(Vector::from(collider.extents()).extend(0.0).as_f32())
+//     //             .with_translation(Vector::from(collider.center()).extend(0.0).as_f32()),
+//     //         Color::WHITE,
+//     //     );
+//     // }
+// }
