@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 bevy = "0.11.0"
+bevy_prototype_lyon = "0.9.0"
 # Add 3D Bevy XPBD with double-precision floating point numbers
 bevy_xpbd_2d = { git = "https://github.com/Jondolf/bevy_xpbd", branch = "main", features = ["2d", "debug-plugin", "default", "simd"]}
 # Enable max optimizations for dependencies, but not for our code:
