@@ -72,14 +72,20 @@ pub fn spawn_world(
             collider,
             Position::from(Vec2 { x: 0.0, y: 0.0 }),
             Rotation::from_degrees(45.0),
-            ShapeBundle {
-                path: GeometryBuilder::build_as(&long_shape),
-                ..default()
-            },
-            Fill::color(Color::CYAN),
-            Stroke::new(Color::BLACK, 0.01),
         )
-    );
+    ).with_children(|parent| {
+        parent.spawn(
+            (
+                ShapeBundle {
+                    path: GeometryBuilder::build_as(&long_shape),
+                    transform: Transform::from_xyz(0.0, 0.0, 0.0),
+                    ..default()
+                },
+                Fill::color(Color::CYAN),
+                Stroke::new(Color::BLACK, 0.01),
+            )
+        );
+    });
 }
 
 pub fn spawn_player(
