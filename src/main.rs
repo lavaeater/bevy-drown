@@ -99,27 +99,14 @@ pub fn spawn_camera(mut commands: Commands) {
     );
 }
 
-pub fn camera_follow(to_follow: Query<&Position, (With<CameraFollow>, Without<GameCam>)>,
-                     mut camera: Query<&mut Transform, (With<GameCam>, Without<CameraFollow>)>
+pub fn camera_follow(to_follow: Query<&GlobalTransform, (With<CameraFollow>, Without<GameCam>)>,
+                     mut camera: Query<(&mut GlobalTransform, &mut Transform), (With<GameCam>, Without<CameraFollow>)>
 ) {
-    let Ok(player_position) = to_follow.get_single() else {return};
-    let Ok(mut camera_transform) = camera.get_single_mut() else { return };
+    let Ok(player_position) = to_follow.get_single() else { return };
+    let Ok((mut cam_global, mut camera_transform)) = camera.get_single_mut() else { return };
 
-    // camera_transform.translation += Vec3 {x:0.1, y: 0.0, z: 0.0}
-    //
-    // camera_transform.translation = player_transform.translation;
-    //
-    // let viewport = &cam.viewport;
-    //
-    // match viewport {
-    //     // The division was valid
-    //     Some(vp) => vp.physical_position,
-    //     // The division was invalid
-    //     None    => println!("Cannot divide by 0"),
-    // }
+    
 
-    let delta_x = player_position.x - camera_transform.translation.x;
-    let delta_y =  player_position.y - camera_transform.translation.y;
     if delta_x != 0.0 || delta_y != 0.0  {
         camera_transform.translation.x += delta_x;
         camera_transform.translation.y += delta_y;
