@@ -100,16 +100,15 @@ pub fn spawn_camera(mut commands: Commands) {
 }
 
 pub fn camera_follow(to_follow: Query<&GlobalTransform, (With<CameraFollow>, Without<GameCam>)>,
-                     mut camera: Query<(&mut GlobalTransform, &mut Transform), (With<GameCam>, Without<CameraFollow>)>
+                     mut camera: Query<(&GlobalTransform, &mut Transform), (With<GameCam>, Without<CameraFollow>)>
 ) {
     let Ok(player_position) = to_follow.get_single() else { return };
-    let Ok((mut cam_global, mut camera_transform)) = camera.get_single_mut() else { return };
+    let Ok((cam_global, mut camera_transform)) = camera.get_single_mut() else { return };
 
-    
+    let delta = player_position.translation() - cam_global.translation();
 
-    if delta_x != 0.0 || delta_y != 0.0  {
-        camera_transform.translation.x += delta_x;
-        camera_transform.translation.y += delta_y;
+    if delta != Vec3::ZERO {
+        camera_transform.translation += Vec3 { x: delta.x, y: delta.y, z: 0.0 };
     }
 
 }
