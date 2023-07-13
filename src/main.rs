@@ -3,6 +3,7 @@ use bevy::render::camera::ScalingMode;
 use bevy_xpbd_2d::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use bevy_xpbd_2d::math::Vector;
+use bevy_xpbd_2d::parry::shape::{Compound, ShapeType};
 
 const PIXELS_PER_METER: f32 = 32.0;
 const METERS_PER_PIXEL: f32 = 1.0 / PIXELS_PER_METER;
@@ -138,12 +139,20 @@ pub fn camera_follow(to_follow: Query<&Transform, (With<CameraFollow>, Without<G
 }
 
 // fn debug_render_aabbs(colliders: Query<&Collider>, mut gizmos: Gizmos) {
-//     // for collider in colliders.iter() {
-//     //
-//     //     gizmos.cuboid(
-//     //         Transform::from_scale(Vector::from(collider.extents()).extend(0.0).as_f32())
-//     //             .with_translation(Vector::from(collider.center()).extend(0.0).as_f32()),
-//     //         Color::WHITE,
-//     //     );
-//     // }
+//     for collider in colliders.iter() {
+//         if collider.shape_type() == ShapeType::Compound {
+//             let c_shape = collider.as_compound();
+//             match c_shape {
+//                 None => {}
+//                 Some(comp) => {
+//                     gizmos.cuboid(
+//                         Transform::from_scale(Vector::from(collider.extents()).extend(0.0).as_f32())
+//                             .with_translation(Vector::from(collider.center()).extend(0.0).as_f32()),
+//                         Color::WHITE,
+//                     );
+//                 }
+//             }
+//         }
+//
+//     }
 // }
