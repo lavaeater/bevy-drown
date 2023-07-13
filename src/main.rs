@@ -1,3 +1,4 @@
+use bevy::math::vec2;
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
 use bevy_xpbd_2d::prelude::*;
@@ -42,21 +43,10 @@ pub struct GameCam {}
 pub fn spawn_world(
     mut commands: Commands,
 ) {
-    /*
-    We need four bodies
-    They can be built from two different shapes
-     */
-    //Add a stupid shape for now?
-    let long_shape = shapes::Rectangle {
-        extents: Vec2::new(10.0, 0.1),
-        origin: shapes::RectangleOrigin::Center,
+    let polygon_shape = shapes::Polygon {
+        closed: true,
+        points: vec!(vec2(-5.0, 0.0), vec2(5.0, 0.0), vec2(5.0, -0.1), vec2(-5.0, -0.1))
     };
-
-    let short_shape = shapes::Rectangle {
-        extents: Vec2::new(0.1, 2.2),
-        origin: shapes::RectangleOrigin::Center,
-    };
-
 
     let collider = Collider::compound(
         vec![
@@ -73,20 +63,15 @@ pub fn spawn_world(
             collider,
             Position::from(Vec2 { x: 0.0, y: 0.0 }),
             Rotation::from_degrees(45.0),
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&polygon_shape),
+                transform: Transform::from_xyz(0.0, 0.0, 0.0),
+                ..default()
+            },
+            Fill::color(Color::CYAN),
+            Stroke::new(Color::BLACK, 0.01),
         )
-    ).with_children(|parent| {
-        parent.spawn(
-            (
-                ShapeBundle {
-                    path: GeometryBuilder::build_as(&long_shape),
-                    transform: Transform::from_xyz(0.0, 0.0, 0.0),
-                    ..default()
-                },
-                Fill::color(Color::CYAN),
-                Stroke::new(Color::BLACK, 0.01),
-            )
-        );
-    });
+    );
 }
 
 pub fn spawn_player(
