@@ -6,10 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = "0.11.0"
-bevy_prototype_lyon = "0.9.0"
+bevy = "0.10.1"
+bevy_ecs_ldtk = "0.7.0"
+bevy_prototype_lyon = "0.8.0"
 # Add 3D Bevy XPBD with double-precision floating point numbers
-bevy_xpbd_2d = { git = "https://github.com/Jondolf/bevy_xpbd", branch = "main", features = ["2d", "debug-plugin", "default", "simd"]}
+bevy_xpbd_2d = { version = "0.1.0", features = ["2d", "debug-plugin", "default", "simd"]}
 # Enable max optimizations for dependencies, but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
