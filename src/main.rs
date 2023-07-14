@@ -32,6 +32,10 @@ fn main() {
         .add_system(spawn_wall_collision)
         .add_system(spawn_player)
         .insert_resource(LevelSelection::Index(0))
+        .insert_resource(LdtkSettings {
+            level_background: LevelBackground::Nonexistent,
+            ..default()
+        })
         .register_ldtk_int_cell::<WallBundle>(1)
         .register_ldtk_int_cell::<WaterBundle>(2)
         .register_ldtk_int_cell::<PlayerStartBundle>(3)
@@ -99,41 +103,6 @@ pub fn load_map(
     });
 }
 
-
-pub fn spawn_world(
-    mut commands: Commands,
-) {
-    let polygon_shape = shapes::Polygon {
-        closed: true,
-        points: vec!(vec2(-5.0, 0.0), vec2(5.0, 0.0), vec2(5.0, -0.1), vec2(-5.0, -0.1)),
-    };
-
-    let collider = Collider::compound(
-        vec![
-            (Vec2::new(0.0, 0.0), Rotation::from_degrees(0.0), Collider::cuboid(10.0, 0.1)),
-            (Vec2::new(5.0, 1.0), Rotation::from_degrees(0.0), Collider::cuboid(0.1, 2.0)),
-            (Vec2::new(-5.0, 1.0), Rotation::from_degrees(0.0), Collider::cuboid(0.1, 2.0)),
-            (Vec2::new(0.0, 2.0), Rotation::from_degrees(0.0), Collider::cuboid(10.10, 0.1)),
-        ]);
-
-
-    commands.spawn(
-        (
-            RigidBody::Static,
-            collider,
-            Position::from(Vec2 { x: 0.0, y: 0.0 }),
-            Rotation::from_degrees(45.0),
-            ShapeBundle {
-                path: GeometryBuilder::build_as(&polygon_shape),
-                transform: Transform::from_xyz(0.0, 0.0, 0.0),
-                ..default()
-            },
-            Fill::color(Color::CYAN),
-            Stroke::new(Color::BLACK, 0.01),
-        )
-    );
-}
-
 pub fn spawn_player(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -144,7 +113,7 @@ pub fn spawn_player(
             (
                 CameraFollow {},
                 SpriteBundle {
-                    transform: Transform::from_xyz(gc.x as f32 * MAP_SCALE * 8.0, gc.y as f32 * MAP_SCALE * 8.0, 0.0),//.with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, METERS_PER_PIXEL)),
+                    transform: Transform::from_xyz(gc.x as f32 * 8.0, gc.y as f32 * 8.0, 0.5).with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, 1.0)),
                     texture: asset_server.load("sprites/head.png"),
                     ..default()
                 },
@@ -154,8 +123,6 @@ pub fn spawn_player(
             )
         );
     }
-
-
 }
 
 pub fn spawn_camera(mut commands: Commands) {
@@ -163,7 +130,7 @@ pub fn spawn_camera(mut commands: Commands) {
         Camera2dBundle {
             transform: Transform::from_xyz(0.0, 0.0, 1.0),
             projection: OrthographicProjection {
-                scale: 1.0,//METERS_PER_PIXEL * 20.0,
+                scale: 1.0,
                 near: 0.0,
                 far: 1000.0,
                 viewport_origin: Vec2::new(0.5, 0.5),
@@ -352,17 +319,17 @@ pub fn spawn_wall_collision(
                             .insert(
                                 (RigidBody::Static,
                                  Collider::cuboid((wall_rect.right as f32 - wall_rect.left as f32 + 1.)
-                                                      * grid_size as f32 * MAP_SCALE
+                                                      * grid_size as f32
                                                       ,// /2., we're not using half extents because we're not using rapier
                                                   (wall_rect.top as f32 - wall_rect.bottom as f32 + 1.)
-                                                      * grid_size as f32 * MAP_SCALE
+                                                      * grid_size as f32
                                                       , // / 2., full extents
                                  ),
                                  Position::from(Vec2 {
                                      x: (wall_rect.left + wall_rect.right + 1) as f32 * grid_size as f32
-                                         / 2. * MAP_SCALE,
+                                         / 2.,
                                      y: (wall_rect.bottom + wall_rect.top + 1) as f32 * grid_size as f32
-                                         / 2. * MAP_SCALE,
+                                         / 2.,
                                  }),
                             ));
                             // .insert(Collider::cuboid(
