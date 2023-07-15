@@ -1,10 +1,9 @@
-use bevy::math::vec2;
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
 use bevy_xpbd_2d::prelude::*;
-use bevy_prototype_lyon::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use std::collections::{HashMap, HashSet};
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 
 const PIXELS_PER_METER: f32 = 32.0;
@@ -26,7 +25,7 @@ fn main() {
             PhysicsPlugins
         )
         .add_plugin(LdtkPlugin)
-        .add_plugin(ShapePlugin)
+        .add_plugin(WorldInspectorPlugin::new())
         .add_startup_system(spawn_camera)
         .add_startup_system(load_map)
         .add_system(spawn_wall_collision)
@@ -113,7 +112,7 @@ pub fn spawn_player(
             (
                 CameraFollow {},
                 SpriteBundle {
-                    transform: Transform::from_xyz(gc.x as f32 * 8.0, gc.y as f32 * 8.0, 0.5).with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, 1.0)),
+                    transform: Transform::from_xyz(0.0, 0.0, 0.0),//(gc.x as f32 * 8.0, gc.y as f32 * 8.0,-1.0),//.with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, 1.0)),
                     texture: asset_server.load("sprites/head.png"),
                     ..default()
                 },
@@ -130,7 +129,7 @@ pub fn spawn_camera(mut commands: Commands) {
         Camera2dBundle {
             transform: Transform::from_xyz(0.0, 0.0, 1.0),
             projection: OrthographicProjection {
-                scale: 1.0,
+                scale: 100.0,
                 near: 0.0,
                 far: 1000.0,
                 viewport_origin: Vec2::new(0.5, 0.5),
