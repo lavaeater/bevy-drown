@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 
-const PIXELS_PER_METER: f32 = 32.0;
+const PIXELS_PER_METER: f32 = 8.0;
 const METERS_PER_PIXEL: f32 = 1.0 / PIXELS_PER_METER;
 
 const MAP_SCALE: f32 = 1.0 / 8.0;
@@ -33,6 +33,7 @@ fn main() {
         .insert_resource(LevelSelection::Index(0))
         .insert_resource(LdtkSettings {
             level_background: LevelBackground::Nonexistent,
+            int_grid_rendering: IntGridRendering::Invisible,
             ..default()
         })
         .register_ldtk_int_cell::<WallBundle>(1)
@@ -40,6 +41,7 @@ fn main() {
         .register_ldtk_int_cell::<PlayerStartBundle>(3)
         .add_system(update_level_selection)
         .add_system(camera_follow)
+        .add_system(fix_player_z)
         .run();
 }
 
@@ -112,7 +114,7 @@ pub fn spawn_player(
             (
                 CameraFollow {},
                 SpriteBundle {
-                    transform: Transform::from_xyz(0.0, 0.0, 0.0),//(gc.x as f32 * 8.0, gc.y as f32 * 8.0,-1.0),//.with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, 1.0)),
+                    transform: Transform::from_xyz(gc.x as f32 * PIXELS_PER_METER, gc.y as f32 * PIXELS_PER_METER,1.0).with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, 1.0)),
                     texture: asset_server.load("sprites/head.png"),
                     ..default()
                 },
@@ -129,7 +131,7 @@ pub fn spawn_camera(mut commands: Commands) {
         Camera2dBundle {
             transform: Transform::from_xyz(0.0, 0.0, 1.0),
             projection: OrthographicProjection {
-                scale: 100.0,
+                scale: METERS_PER_PIXEL,
                 near: 0.0,
                 far: 1000.0,
                 viewport_origin: Vec2::new(0.5, 0.5),
@@ -141,6 +143,11 @@ pub fn spawn_camera(mut commands: Commands) {
         GameCam {},
     )
     );
+}
+
+pub fn fix_player_z(mut player_transform_query: Query<&mut Transform, (With<CameraFollow>, Without<GameCam>)>) {
+    let Ok(mut player_transform) = player_transform_query.get_single_mut() else { return; };
+    player_transform.translation.z = 1.0
 }
 
 pub fn camera_follow(to_follow: Query<&Transform, (With<CameraFollow>, Without<GameCam>)>,
