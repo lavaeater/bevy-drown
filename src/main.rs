@@ -8,8 +8,6 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 const PIXELS_PER_METER: f32 = 8.0;
 const METERS_PER_PIXEL: f32 = 1.0 / PIXELS_PER_METER;
-
-const MAP_SCALE: f32 = 1.0 / 8.0;
 const HEAD_SIZE: f32 = 8.0;
 
 
@@ -22,26 +20,26 @@ fn main() {
             ),
         )
         .add_plugins(
-            PhysicsPlugins
+            PhysicsPlugins::default()
         )
-        .add_plugin(LdtkPlugin)
-        .add_plugin(WorldInspectorPlugin::new())
-        .add_startup_system(spawn_camera)
-        .add_startup_system(load_map)
-        .add_system(spawn_wall_collision)
-        .add_system(spawn_player)
+        .add_plugins(LdtkPlugin)
+        .add_plugins(WorldInspectorPlugin::new())
+        .add_systems(Startup,spawn_camera)
+        .add_systems(Startup,load_map)
+        .add_systems(Update,spawn_wall_collision)
+        .add_systems(Update,spawn_player)
         .insert_resource(LevelSelection::Index(0))
         .insert_resource(LdtkSettings {
             level_background: LevelBackground::Nonexistent,
             int_grid_rendering: IntGridRendering::Invisible,
+            level_spawn_behavior: LevelSpawnBehavior::UseZeroTranslation,
             ..default()
         })
         .register_ldtk_int_cell::<WallBundle>(1)
         .register_ldtk_int_cell::<WaterBundle>(2)
         .register_ldtk_int_cell::<PlayerStartBundle>(3)
-        .add_system(update_level_selection)
-        .add_system(camera_follow)
-        .add_system(fix_player_z)
+        .add_systems(Update,update_level_selection)
+        .add_systems(Update,camera_follow)
         .run();
 }
 
@@ -84,13 +82,13 @@ pub struct GameCam {}
 #[derive(Bundle, LdtkEntity)]
 pub struct MapEntity {
     #[sprite_sheet_bundle]
-    #[bundle]
+    #[bundle()]
     sprite_bundle: SpriteSheetBundle,
 }
 
 #[derive(Bundle, LdtkIntCell)]
 pub struct IntCell {
-    #[bundle]
+    #[bundle()]
     sprite_bundle: SpriteSheetBundle,
 }
 
@@ -100,6 +98,7 @@ pub fn load_map(
 ) {
     commands.spawn(LdtkWorldBundle {
         ldtk_handle: asset_server.load("maps/shafts.ldtk"),
+        transform: Transform::from_xyz(0.0, 0.0, 0.0),
         ..Default::default()
     });
 }
@@ -109,17 +108,18 @@ pub fn spawn_player(
     asset_server: Res<AssetServer>,
     start_query: Query<(&GridCoords, &Parent), Added<PlayerStart>>,
 ) {
-    if let Ok((gc, parent)) = start_query.get_single() {
+    if let Ok((gc, _)) = start_query.get_single() {
         commands.spawn(
             (
                 CameraFollow {},
                 SpriteBundle {
-                    transform: Transform::from_xyz(gc.x as f32 * PIXELS_PER_METER, gc.y as f32 * PIXELS_PER_METER,1.0).with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, 1.0)),
+                    transform: Transform::from_xyz(-gc.x as f32 * PIXELS_PER_METER, -gc.y as f32 * PIXELS_PER_METER,1.0).with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, 1.0)),
                     texture: asset_server.load("sprites/head.png"),
                     ..default()
                 },
                 Player {},
                 RigidBody::Dynamic,
+                Position::from(Vec2{x: gc.x as f32 * PIXELS_PER_METER, y: gc.y as f32 * PIXELS_PER_METER}),
                 Collider::ball(HEAD_SIZE * METERS_PER_PIXEL / 2.0)
             )
         );
@@ -129,7 +129,6 @@ pub fn spawn_player(
 pub fn spawn_camera(mut commands: Commands) {
     commands.spawn((
         Camera2dBundle {
-            transform: Transform::from_xyz(0.0, 0.0, 1.0),
             projection: OrthographicProjection {
                 scale: METERS_PER_PIXEL,
                 near: 0.0,
@@ -145,11 +144,6 @@ pub fn spawn_camera(mut commands: Commands) {
     );
 }
 
-pub fn fix_player_z(mut player_transform_query: Query<&mut Transform, (With<CameraFollow>, Without<GameCam>)>) {
-    let Ok(mut player_transform) = player_transform_query.get_single_mut() else { return; };
-    player_transform.translation.z = 1.0
-}
-
 pub fn camera_follow(to_follow: Query<&Transform, (With<CameraFollow>, Without<GameCam>)>,
                      mut camera: Query<&mut Transform, (With<GameCam>, Without<CameraFollow>)>,
 ) {
@@ -160,25 +154,6 @@ pub fn camera_follow(to_follow: Query<&Transform, (With<CameraFollow>, Without<G
 
     camera_transform.translation = camera_transform.translation.lerp(target, 0.1);
 }
-
-// fn debug_render_aabbs(colliders: Query<&Collider>, mut gizmos: Gizmos) {
-//     for collider in colliders.iter() {
-//         if collider.shape_type() == ShapeType::Compound {
-//             let c_shape = collider.as_compound();
-//             match c_shape {
-//                 None => {}
-//                 Some(comp) => {
-//                     gizmos.cuboid(
-//                         Transform::from_scale(Vector::from(collider.extents()).extend(0.0).as_f32())
-//                             .with_translation(Vector::from(collider.center()).extend(0.0).as_f32()),
-//                         Color::WHITE,
-//                     );
-//                 }
-//             }
-//         }
-//
-//     }
-// }
 
 /// Spawns heron collisions for the walls of a level
 ///
@@ -338,24 +313,6 @@ pub fn spawn_wall_collision(
                                          / 2.,
                                  }),
                             ));
-                            // .insert(Collider::cuboid(
-                            //     (wall_rect.right as f32 - wall_rect.left as f32 + 1.)
-                            //         * grid_size as f32
-                            //         / 2.,
-                            //     (wall_rect.top as f32 - wall_rect.bottom as f32 + 1.)
-                            //         * grid_size as f32
-                            //         / 2.,
-                            // ))
-                            // .insert(RigidBody::Static)
-                            // .insert(Friction::new(1.0))
-                            // .insert(Transform::from_xyz(
-                            //     (wall_rect.left + wall_rect.right + 1) as f32 * grid_size as f32
-                            //         / 2.,
-                            //     (wall_rect.bottom + wall_rect.top + 1) as f32 * grid_size as f32
-                            //         / 2.,
-                            //     0.,
-                            // ))
-                            //.insert(GlobalTransform::default());
                     }
                 });
             }
