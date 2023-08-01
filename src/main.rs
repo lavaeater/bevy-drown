@@ -24,10 +24,11 @@ fn main() {
         )
         .add_plugins(LdtkPlugin)
         .add_plugins(WorldInspectorPlugin::new())
-        .add_systems(Startup,spawn_camera)
-        .add_systems(Startup,load_map)
-        .add_systems(Update,spawn_wall_collision)
-        .add_systems(Update,spawn_player)
+        .add_systems(Startup, spawn_camera)
+        .add_systems(Startup, load_map)
+        .add_systems(Update, spawn_wall_collision)
+        .add_systems(Update, spawn_player)
+        .insert_resource(GizmoConfig { depth_bias: -1.0, ..default() })
         .insert_resource(LevelSelection::Index(0))
         .insert_resource(LdtkSettings {
             level_background: LevelBackground::Nonexistent,
@@ -38,8 +39,8 @@ fn main() {
         .register_ldtk_int_cell::<WallBundle>(1)
         .register_ldtk_int_cell::<WaterBundle>(2)
         .register_ldtk_int_cell::<PlayerStartBundle>(3)
-        .add_systems(Update,update_level_selection)
-        .add_systems(Update,camera_follow)
+        .add_systems(Update, update_level_selection)
+        .add_systems(Update, camera_follow)
         .run();
 }
 
@@ -51,7 +52,6 @@ pub struct Wall;
 pub struct WallBundle {
     wall: Wall,
 }
-
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Component)]
 pub struct Water;
@@ -92,6 +92,22 @@ pub struct IntCell {
     sprite_bundle: SpriteSheetBundle,
 }
 
+/// Represents a wide wall that is 1 tile tall
+/// Used to spawn wall collisions
+#[derive(Clone, Eq, PartialEq, Debug, Default, Hash)]
+struct Plate {
+    left: i32,
+    right: i32,
+}
+
+/// A simple rectangle type representing a wall of any size
+struct WallRect {
+    left: i32,
+    right: i32,
+    top: i32,
+    bottom: i32,
+}
+
 pub fn load_map(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -113,13 +129,13 @@ pub fn spawn_player(
             (
                 CameraFollow {},
                 SpriteBundle {
-                    transform: Transform::from_xyz(-gc.x as f32 * PIXELS_PER_METER, -gc.y as f32 * PIXELS_PER_METER,1.0).with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, 1.0)),
+                    transform: Transform::from_xyz(-gc.x as f32 * PIXELS_PER_METER, -gc.y as f32 * PIXELS_PER_METER, 1.0).with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, 1.0)),
                     texture: asset_server.load("sprites/head.png"),
                     ..default()
                 },
                 Player {},
                 RigidBody::Dynamic,
-                Position::from(Vec2{x: gc.x as f32 * PIXELS_PER_METER, y: gc.y as f32 * PIXELS_PER_METER}),
+                Position::from(Vec2 { x: gc.x as f32 * PIXELS_PER_METER, y: gc.y as f32 * PIXELS_PER_METER }),
                 Collider::ball(HEAD_SIZE * METERS_PER_PIXEL / 2.0)
             )
         );
@@ -178,21 +194,6 @@ pub fn spawn_wall_collision(
     level_query: Query<(Entity, &Handle<LdtkLevel>)>,
     levels: Res<Assets<LdtkLevel>>,
 ) {
-    /// Represents a wide wall that is 1 tile tall
-    /// Used to spawn wall collisions
-    #[derive(Clone, Eq, PartialEq, Debug, Default, Hash)]
-    struct Plate {
-        left: i32,
-        right: i32,
-    }
-
-    /// A simple rectangle type representing a wall of any size
-    struct Rect {
-        left: i32,
-        right: i32,
-        top: i32,
-        bottom: i32,
-    }
 
     // Consider where the walls are
     // storing them as GridCoords in a HashSet for quick, easy lookup
@@ -259,9 +260,9 @@ pub fn spawn_wall_collision(
                 }
 
                 // combine "plates" into rectangles across multiple rows
-                let mut rect_builder: HashMap<Plate, Rect> = HashMap::new();
+                let mut rect_builder: HashMap<Plate, WallRect> = HashMap::new();
                 let mut prev_row: Vec<Plate> = Vec::new();
-                let mut wall_rects: Vec<Rect> = Vec::new();
+                let mut wall_rects: Vec<WallRect> = Vec::new();
 
                 // an extra empty row so the algorithm "finishes" the rects that touch the top edge
                 plate_stack.push(Vec::new());
@@ -279,7 +280,7 @@ pub fn spawn_wall_collision(
                         rect_builder
                             .entry(plate.clone())
                             .and_modify(|e| e.top += 1)
-                            .or_insert(Rect {
+                            .or_insert(WallRect {
                                 bottom: y as i32,
                                 top: y as i32,
                                 left: plate.left,
@@ -301,10 +302,10 @@ pub fn spawn_wall_collision(
                                 (RigidBody::Static,
                                  Collider::cuboid((wall_rect.right as f32 - wall_rect.left as f32 + 1.)
                                                       * grid_size as f32
-                                                      ,// /2., we're not using half extents because we're not using rapier
+                                                  ,// /2., we're not using half extents because we're not using rapier
                                                   (wall_rect.top as f32 - wall_rect.bottom as f32 + 1.)
                                                       * grid_size as f32
-                                                      , // / 2., full extents
+                                                  , // / 2., full extents
                                  ),
                                  Position::from(Vec2 {
                                      x: (wall_rect.left + wall_rect.right + 1) as f32 * grid_size as f32
@@ -312,7 +313,143 @@ pub fn spawn_wall_collision(
                                      y: (wall_rect.bottom + wall_rect.top + 1) as f32 * grid_size as f32
                                          / 2.,
                                  }),
-                            ));
+                                ));
+                    }
+                });
+            }
+        });
+    }
+}
+
+pub fn spawn_water_sensors(
+    mut commands: Commands,
+    water_query: Query<(&GridCoords, &Parent), Added<Water>>,
+    parent_query: Query<&Parent, Without<Water>>,
+    level_query: Query<(Entity, &Handle<LdtkLevel>)>,
+    levels: Res<Assets<LdtkLevel>>,
+) {
+
+
+    // Consider where the walls are
+    // storing them as GridCoords in a HashSet for quick, easy lookup
+    //
+    // The key of this map will be the entity of the level the wall belongs to.
+    // This has two consequences in the resulting collision entities:
+    // 1. it forces the walls to be split along level boundaries
+    // 2. it lets us easily add the collision entities as children of the appropriate level entity
+    let mut level_to_water_locations: HashMap<Entity, HashSet<GridCoords>> = HashMap::new();
+
+    water_query.for_each(|(&grid_coords, parent)| {
+        // An intgrid tile's direct parent will be a layer entity, not the level entity
+        // To get the level entity, you need the tile's grandparent.
+        // This is where parent_query comes in.
+        if let Ok(grandparent) = parent_query.get(parent.get()) {
+            level_to_water_locations
+                .entry(grandparent.get())
+                .or_default()
+                .insert(grid_coords);
+        }
+    });
+
+    if !water_query.is_empty() {
+        level_query.for_each(|(level_entity, level_handle)| {
+            if let Some(level_water) = level_to_water_locations.get(&level_entity) {
+                let level = levels
+                    .get(level_handle)
+                    .expect("Level should be loaded by this point");
+
+                let LayerInstance {
+                    c_wid: width,
+                    c_hei: height,
+                    grid_size,
+                    ..
+                } = level
+                    .level
+                    .layer_instances
+                    .clone()
+                    .expect("Level asset should have layers")[0];
+
+                // combine wall tiles into flat "plates" in each individual row
+                let mut plate_stack: Vec<Vec<Plate>> = Vec::new();
+
+                for y in 0..height {
+                    let mut row_plates: Vec<Plate> = Vec::new();
+                    let mut plate_start = None;
+
+                    // + 1 to the width so the algorithm "terminates" plates that touch the right edge
+                    for x in 0..width + 1 {
+                        match (plate_start, level_water.contains(&GridCoords { x, y })) {
+                            (Some(s), false) => {
+                                row_plates.push(Plate {
+                                    left: s,
+                                    right: x - 1,
+                                });
+                                plate_start = None;
+                            }
+                            (None, true) => plate_start = Some(x),
+                            _ => (),
+                        }
+                    }
+
+                    plate_stack.push(row_plates);
+                }
+
+                // combine "plates" into rectangles across multiple rows
+                let mut rect_builder: HashMap<Plate, WallRect> = HashMap::new();
+                let mut prev_row: Vec<Plate> = Vec::new();
+                let mut water_rects: Vec<WallRect> = Vec::new();
+
+                // an extra empty row so the algorithm "finishes" the rects that touch the top edge
+                plate_stack.push(Vec::new());
+
+                for (y, current_row) in plate_stack.into_iter().enumerate() {
+                    for prev_plate in &prev_row {
+                        if !current_row.contains(prev_plate) {
+                            // remove the finished rect so that the same plate in the future starts a new rect
+                            if let Some(rect) = rect_builder.remove(prev_plate) {
+                                water_rects.push(rect);
+                            }
+                        }
+                    }
+                    for plate in &current_row {
+                        rect_builder
+                            .entry(plate.clone())
+                            .and_modify(|e| e.top += 1)
+                            .or_insert(WallRect {
+                                bottom: y as i32,
+                                top: y as i32,
+                                left: plate.left,
+                                right: plate.right,
+                            });
+                    }
+                    prev_row = current_row;
+                }
+
+                commands.entity(level_entity).with_children(|level| {
+                    // Spawn colliders for every rectangle..
+                    // Making the collider a child of the level serves two purposes:
+                    // 1. Adjusts the transforms to be relative to the level for free
+                    // 2. the colliders will be despawned automatically when levels unload
+                    for water_rect in water_rects {
+                        level
+                            .spawn_empty()
+                            .insert(
+                                (RigidBody::Static,
+                                 Collider::cuboid((water_rect.right as f32 - water_rect.left as f32 + 1.)
+                                                      * grid_size as f32
+                                                  ,// /2., we're not using half extents because we're not using rapier
+                                                  (water_rect.top as f32 - water_rect.bottom as f32 + 1.)
+                                                      * grid_size as f32
+                                                  , // / 2., full extents
+                                 ),
+                                 Position::from(Vec2 {
+                                     x: (water_rect.left + water_rect.right + 1) as f32 * grid_size as f32
+                                         / 2.,
+                                     y: (water_rect.bottom + water_rect.top + 1) as f32 * grid_size as f32
+                                         / 2.,
+                                 }),
+                                 Sensor,
+                                ));
                     }
                 });
             }
