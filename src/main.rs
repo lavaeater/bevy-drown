@@ -27,6 +27,7 @@ fn main() {
         .add_systems(Startup, spawn_camera)
         .add_systems(Startup, load_map)
         .add_systems(Update, spawn_wall_collision)
+        .add_systems(Update, spawn_water_sensors)
         .add_systems(Update, spawn_player)
         .insert_resource(GizmoConfig { depth_bias: -1.0, ..default() })
         .insert_resource(LevelSelection::Index(0))
@@ -41,6 +42,9 @@ fn main() {
         .register_ldtk_int_cell::<PlayerStartBundle>(3)
         .add_systems(Update, update_level_selection)
         .add_systems(Update, camera_follow)
+        .add_systems(Update, water_started)
+        .add_systems(Update, water_ended)
+        .add_systems(Update, buoyancy)
         .run();
 }
 
@@ -69,6 +73,14 @@ pub struct PlayerStartBundle {
     player_start: PlayerStart,
 }
 
+#[derive(PhysicsLayer)]
+enum Layer {
+    Player,
+    Enemy,
+    Walls,
+    Water
+}
+
 
 #[derive(Component)]
 pub struct Player {}
@@ -85,6 +97,9 @@ pub struct MapEntity {
     #[bundle()]
     sprite_bundle: SpriteSheetBundle,
 }
+
+#[derive(Component)]
+pub struct InWater {}
 
 #[derive(Bundle, LdtkIntCell)]
 pub struct IntCell {
@@ -129,14 +144,26 @@ pub fn spawn_player(
             (
                 CameraFollow {},
                 SpriteBundle {
-                    transform: Transform::from_xyz(-gc.x as f32 * PIXELS_PER_METER, -gc.y as f32 * PIXELS_PER_METER, 1.0).with_scale(Vec3::new(METERS_PER_PIXEL, METERS_PER_PIXEL, 1.0)),
+                    transform: Transform::from_xyz(
+                        gc.x as f32 * PIXELS_PER_METER,
+                        gc.y as f32 * PIXELS_PER_METER,
+                        1.0,
+                    ).with_scale(
+                        Vec3::new(
+                            METERS_PER_PIXEL,
+                            METERS_PER_PIXEL,
+                            1.0)),
                     texture: asset_server.load("sprites/head.png"),
                     ..default()
                 },
                 Player {},
                 RigidBody::Dynamic,
-                Position::from(Vec2 { x: gc.x as f32 * PIXELS_PER_METER, y: gc.y as f32 * PIXELS_PER_METER }),
-                Collider::ball(HEAD_SIZE * METERS_PER_PIXEL / 2.0)
+                Position::from(Vec2 {
+                    x: gc.x as f32 * PIXELS_PER_METER,
+                    y: gc.y as f32 * PIXELS_PER_METER,
+                }),
+                Collider::ball(HEAD_SIZE * METERS_PER_PIXEL / 2.0),
+                CollisionLayers::new([Layer::Player], [Layer::Walls, Layer::Water])
             )
         );
     }
@@ -146,7 +173,7 @@ pub fn spawn_camera(mut commands: Commands) {
     commands.spawn((
         Camera2dBundle {
             projection: OrthographicProjection {
-                scale: METERS_PER_PIXEL,
+                scale: METERS_PER_PIXEL * 10.0,
                 near: 0.0,
                 far: 1000.0,
                 viewport_origin: Vec2::new(0.5, 0.5),
@@ -165,7 +192,11 @@ pub fn camera_follow(to_follow: Query<&Transform, (With<CameraFollow>, Without<G
 ) {
     let Ok(player_position) = to_follow.get_single() else { return; };
     let Ok(mut camera_transform) = camera.get_single_mut() else { return; };
-    let target = Vec3 { x: player_position.translation.x, y: player_position.translation.y, z: camera_transform.translation.z };
+    let target = Vec3 {
+        x: player_position.translation.x,
+        y: player_position.translation.y,
+        z: camera_transform.translation.z,
+    };
 
 
     camera_transform.translation = camera_transform.translation.lerp(target, 0.1);
@@ -299,20 +330,22 @@ pub fn spawn_wall_collision(
                         level
                             .spawn_empty()
                             .insert(
-                                (RigidBody::Static,
-                                 Collider::cuboid((wall_rect.right as f32 - wall_rect.left as f32 + 1.)
-                                                      * grid_size as f32
-                                                  ,// /2., we're not using half extents because we're not using rapier
-                                                  (wall_rect.top as f32 - wall_rect.bottom as f32 + 1.)
-                                                      * grid_size as f32
-                                                  , // / 2., full extents
-                                 ),
-                                 Position::from(Vec2 {
-                                     x: (wall_rect.left + wall_rect.right + 1) as f32 * grid_size as f32
-                                         / 2.,
-                                     y: (wall_rect.bottom + wall_rect.top + 1) as f32 * grid_size as f32
-                                         / 2.,
-                                 }),
+                                (
+                                    RigidBody::Static,
+                                    Collider::cuboid((wall_rect.right as f32 - wall_rect.left as f32 + 1.)
+                                                         * grid_size as f32
+                                                     ,// /2., we're not using half extents because we're not using rapier
+                                                     (wall_rect.top as f32 - wall_rect.bottom as f32 + 1.)
+                                                         * grid_size as f32
+                                                     , // / 2., full extents
+                                    ),
+                                    Position::from(Vec2 {
+                                        x: (wall_rect.left + wall_rect.right + 1) as f32 * grid_size as f32
+                                            / 2.,
+                                        y: (wall_rect.bottom + wall_rect.top + 1) as f32 * grid_size as f32
+                                            / 2.,
+                                    }),
+                                    CollisionLayers::new([Layer::Walls], [Layer::Player])
                                 ));
                     }
                 });
@@ -425,35 +458,78 @@ pub fn spawn_water_sensors(
                     prev_row = current_row;
                 }
 
-                commands.entity(level_entity).with_children(|level| {
-                    // Spawn colliders for every rectangle..
-                    // Making the collider a child of the level serves two purposes:
-                    // 1. Adjusts the transforms to be relative to the level for free
-                    // 2. the colliders will be despawned automatically when levels unload
-                    for water_rect in water_rects {
-                        level
-                            .spawn_empty()
-                            .insert(
-                                (RigidBody::Static,
-                                 Collider::cuboid((water_rect.right as f32 - water_rect.left as f32 + 1.)
-                                                      * grid_size as f32
-                                                  ,// /2., we're not using half extents because we're not using rapier
-                                                  (water_rect.top as f32 - water_rect.bottom as f32 + 1.)
-                                                      * grid_size as f32
-                                                  , // / 2., full extents
-                                 ),
-                                 Position::from(Vec2 {
-                                     x: (water_rect.left + water_rect.right + 1) as f32 * grid_size as f32
-                                         / 2.,
-                                     y: (water_rect.bottom + water_rect.top + 1) as f32 * grid_size as f32
-                                         / 2.,
-                                 }),
-                                 Sensor,
-                                ));
-                    }
-                });
+                commands
+                    .entity(level_entity)
+                    .with_children(|level| {
+                        // Spawn colliders for every rectangle..
+                        // Making the collider a child of the level serves two purposes:
+                        // 1. Adjusts the transforms to be relative to the level for free
+                        // 2. the colliders will be despawned automatically when levels unload
+                        for water_rect in water_rects {
+                            level
+                                .spawn_empty()
+                                .insert(
+                                    (
+                                        RigidBody::Static,
+                                        Collider::cuboid(
+                                            (water_rect.right as f32 - water_rect.left as f32 + 1.)
+                                                * grid_size as f32
+                                            ,// /2., we're not using half extents because we're not using rapier
+                                            (water_rect.top as f32 - water_rect.bottom as f32 + 1.)
+                                                * grid_size as f32
+                                            , // / 2., full extents
+                                        ),
+                                        Position::from(
+                                            Vec2 {
+                                                x: (water_rect.left + water_rect.right + 1) as f32 * grid_size as f32
+                                                    / 2.,
+                                                y: (water_rect.bottom + water_rect.top + 1) as f32 * grid_size as f32
+                                                    / 2.,
+                                            }),
+                                        Sensor,
+                                    CollisionLayers::new([Layer::Water], [Layer::Player])
+                                    ));
+                        }
+                    });
             }
         });
+    }
+}
+
+fn water_started(mut collision_event_reader: EventReader<CollisionStarted>, query: Query<&CollisionLayers>, mut commands: Commands) {
+    for CollisionStarted(entity1, entity2) in collision_event_reader.iter() {
+
+        if let Ok([layers1, layers2]) = query.get_many([*entity1, *entity2]) {
+            if layers1.contains_group(Layer::Player) && layers2.contains_group(Layer::Water) {
+                println!("Entity 1 is in the Water!");
+                commands.entity(*entity1).insert(InWater {});
+            } else if layers1.contains_group(Layer::Water) && layers2.contains_group(Layer::Player)
+            {
+                println!("Entity 2 is in the Water!");
+                commands.entity(*entity2).insert(InWater {});
+            }
+        }
+    }
+}
+
+fn water_ended(mut collision_event_reader: EventReader<CollisionEnded>, query: Query<&CollisionLayers>, mut commands: Commands) {
+    for CollisionEnded(entity1, entity2) in collision_event_reader.iter() {
+        if let Ok([layers1, layers2]) = query.get_many([*entity1, *entity2]) {
+            if layers1.contains_group(Layer::Player) && layers2.contains_group(Layer::Water) {
+                println!("Entity 1 is out of the Water!");
+                commands.entity(*entity1).remove::<InWater>();
+            } else if layers1.contains_group(Layer::Water) && layers2.contains_group(Layer::Player)
+            {
+                println!("Entity 2 is out of the Water!");
+                commands.entity(*entity2).remove::<InWater>();
+            }
+        }
+    }
+}
+
+fn buoyancy(query: Query<(&InWater, &Transform)>) {
+    for (inwater, transform) in query.iter() {
+        println!("{:?}", transform);
     }
 }
 
