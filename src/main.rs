@@ -162,6 +162,7 @@ pub fn spawn_player(
                     x: gc.x as f32 * PIXELS_PER_METER,
                     y: gc.y as f32 * PIXELS_PER_METER,
                 }),
+                ExternalForce::default().with_persistence(false),
                 Collider::ball(HEAD_SIZE * METERS_PER_PIXEL / 2.0),
                 CollisionLayers::new([Layer::Player], [Layer::Walls, Layer::Water])
             )
@@ -173,7 +174,7 @@ pub fn spawn_camera(mut commands: Commands) {
     commands.spawn((
         Camera2dBundle {
             projection: OrthographicProjection {
-                scale: METERS_PER_PIXEL * 10.0,
+                scale: METERS_PER_PIXEL,
                 near: 0.0,
                 far: 1000.0,
                 viewport_origin: Vec2::new(0.5, 0.5),
@@ -527,9 +528,9 @@ fn water_ended(mut collision_event_reader: EventReader<CollisionEnded>, query: Q
     }
 }
 
-fn buoyancy(query: Query<(&InWater, &Transform)>) {
-    for (inwater, transform) in query.iter() {
-        println!("{:?}", transform);
+fn buoyancy(mut query: Query<&mut ExternalForce, With<InWater>>) {
+    for mut force in query.iter_mut() {
+        force.apply_force(Vec2 {x: 0.0, y:12.0});
     }
 }
 
