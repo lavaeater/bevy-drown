@@ -3,6 +3,8 @@ use bevy::render::camera::ScalingMode;
 use bevy_xpbd_2d::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use std::collections::{HashMap, HashSet};
+use bevy::input::keyboard::KeyboardInput;
+use bevy::math::vec2;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 
@@ -45,6 +47,7 @@ fn main() {
         .add_systems(Update, water_started)
         .add_systems(Update, water_ended)
         .add_systems(Update, buoyancy)
+        .add_systems(Update, keyboard_input)
         .run();
 }
 
@@ -562,4 +565,39 @@ pub fn update_level_selection(
             }
         }
     }
+}
+
+fn keyboard_input(
+    mut key_evr: EventReader<KeyboardInput>,
+    mut query: Query<&mut ExternalForce, With<Player>>
+) {
+    use bevy::input::ButtonState;
+    if let Ok(mut external_force) = query.get_single_mut() {
+        for ev in key_evr.iter() {
+            match ev.state {
+                ButtonState::Pressed => {
+                    match ev.key_code {
+                        Some(KeyCode::A) => {
+                            external_force.apply_force(vec2(-5.0,0.0));
+                        },
+                        Some(KeyCode::D) => {
+                            external_force.apply_force(vec2(5.0,0.0));
+                        },
+                        Some(KeyCode::W) => {
+                            external_force.apply_force(vec2(0.0,5.0));
+                        },
+                        Some(KeyCode::S) => {
+                            external_force.apply_force(vec2(0.0,-5.0));
+                        },
+                        _ => {}
+                    }
+                }
+                ButtonState::Released => {
+                    println!("Key release: {:?} ({})", ev.key_code, ev.scan_code);
+                }
+            }
+        }
+    }
+
+
 }
