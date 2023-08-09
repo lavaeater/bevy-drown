@@ -9,6 +9,8 @@ use bevy_ecs_ldtk::ldtk::LayerInstance;
 use bevy::render::camera::ScalingMode;
 use bevy::input::keyboard::KeyboardInput;
 use bevy_xpbd_2d::collision::{CollisionEnded, CollisionStarted};
+use bevy_xpbd_2d::math::Vector;
+use bevy_xpbd_2d::prelude::*;
 use crate::{GameCam, HEAD_SIZE, Layer, METERS_PER_PIXEL, PIXELS_PER_METER, Plate, WallRect};
 use crate::components::{CameraFollow, InWater, Player, PlayerStart, Wall, Water};
 
@@ -18,7 +20,8 @@ pub fn spawn_player(
     start_query: Query<(&GridCoords, &Parent), Added<PlayerStart>>,
 ) {
     if let Ok((gc, _)) = start_query.get_single() {
-        commands.spawn(
+
+        let head = commands.spawn(
             (
                 CameraFollow {},
                 SpriteBundle {
@@ -44,6 +47,40 @@ pub fn spawn_player(
                 Collider::ball(HEAD_SIZE * METERS_PER_PIXEL / 2.0),
                 CollisionLayers::new([Layer::Player], [Layer::Walls, Layer::Water])
             )
+        )
+            .id();
+
+        let body = commands.spawn(
+            (
+                SpriteBundle {
+                    transform: Transform::from_xyz(
+                        gc.x as f32 * PIXELS_PER_METER,
+                        gc.y as f32 * PIXELS_PER_METER,
+                        1.0,
+                    ).with_scale(
+                        Vec3::new(
+                            METERS_PER_PIXEL,
+                            METERS_PER_PIXEL,
+                            1.0)),
+                    texture: asset_server.load("sprites/head.png"),
+                    ..default()
+                },
+                RigidBody::Dynamic,
+                Position::from(Vec2 {
+                    x: gc.x as f32 * PIXELS_PER_METER,
+                    y: gc.y as f32 * PIXELS_PER_METER,
+                }),
+                ExternalForce::default().with_persistence(false),
+                Collider::ball(HEAD_SIZE * METERS_PER_PIXEL / 2.0),
+                CollisionLayers::new([Layer::Player], [Layer::Walls, Layer::Water])
+            )
+        )
+            .id();
+
+        commands.spawn(
+            RevoluteJoint::new(head, body)
+                .with_local_anchor_2(Vector::Y * 1.0)
+                .with_angle_limits(-2.0, 2.0),
         );
     }
 }
@@ -52,7 +89,7 @@ pub fn spawn_camera(mut commands: Commands) {
     commands.spawn((
         Camera2dBundle {
             projection: OrthographicProjection {
-                scale: METERS_PER_PIXEL,
+                scale: METERS_PER_PIXEL * 2.0,
                 near: 0.0,
                 far: 1000.0,
                 viewport_origin: Vec2::new(0.5, 0.5),

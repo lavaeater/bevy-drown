@@ -55,7 +55,6 @@ fn main() {
 #[derive(PhysicsLayer)]
 enum Layer {
     Player,
-    Enemy,
     Walls,
     Water
 }
