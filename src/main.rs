@@ -3,7 +3,7 @@ use bevy_xpbd_2d::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use components::{PlayerStartBundle, WallBundle, WaterBundle};
-use crate::systems::systems::*;
+use systems::*;
 
 mod systems;
 mod components;
