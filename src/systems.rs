@@ -24,6 +24,7 @@ pub fn spawn_player(
         let head = commands.spawn(
             (
                 CameraFollow {},
+                InWater {},
                 SpriteBundle {
                     transform: Transform::from_xyz(
                         gc.x as f32 * PIXELS_PER_METER,
@@ -62,16 +63,17 @@ pub fn spawn_player(
                             METERS_PER_PIXEL,
                             METERS_PER_PIXEL,
                             1.0)),
-                    texture: asset_server.load("sprites/head.png"),
+                    texture: asset_server.load("sprites/body.png"),
                     ..default()
                 },
+                InWater {},
                 RigidBody::Dynamic,
                 Position::from(Vec2 {
                     x: gc.x as f32 * PIXELS_PER_METER,
                     y: gc.y as f32 * PIXELS_PER_METER,
                 }),
                 ExternalForce::default().with_persistence(false),
-                Collider::ball(HEAD_SIZE * METERS_PER_PIXEL / 2.0),
+                Collider::cuboid(HEAD_SIZE * METERS_PER_PIXEL / 2.0,HEAD_SIZE * METERS_PER_PIXEL * 8.0),
                 CollisionLayers::new([Layer::Player], [Layer::Walls, Layer::Water])
             )
         )
